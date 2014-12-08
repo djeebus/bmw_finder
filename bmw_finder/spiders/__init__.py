@@ -4,7 +4,7 @@ import scrapy.log
 import time
 import ujson
 
-from scrapy.spider import BaseSpider
+from scrapy.spider import Spider
 from scrapy.selector import Selector
 
 
@@ -12,7 +12,7 @@ MAX_PRICE = 45000
 MAX_MILES = 75000
 
 
-class BaseCarSpider(BaseSpider):
+class BaseCarSpider(Spider):
     LISTING_INFO_KEY = 'listing:%s'
     RAW_VIN_INFO_KEY = 'rawvin:%s'
 
