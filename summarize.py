@@ -9,6 +9,8 @@ from bmw_finder.spiders import MAX_MILES, MAX_PRICE
 
 
 """
+550i options:
+
 P337A: M Sports package
 P7MPA: Sports package
 S1CAA: Selection of COP relevant vehicles
@@ -100,8 +102,127 @@ S925A: Transport protection package
 S9AAA: Outer skin protection
 """
 
+"""
+M3 options
+
+P337A: M Sports package
+S1CAA: Selection of COP relevant vehicles
+S1CCA: Auto start/stop function
+S223A: Electronic Damper Control (EDC)
+S229A: Dynamic Drive
+S248A: Steering wheel heater
+S258A: Tire with run-flat functionality
+S2MDA: M Drive
+S2NDA: BMW LA wheel, M Double Spoke 351
+S2VAA: Chassis & suspens. setup"Adaptive Drive"
+S2VBA: Tyre pressure control (TPC)
+S302A: Alarm system
+S313A: Fold-in outside mirror
+S316A: automatic trunk lid mechanism
+S319A: Integrated universal remote control
+S322A: Comfort access
+S323A: Soft-Close-Automatic doors
+S3AGA: Reversing camera
+S403A: Glass roof, electrical
+S415A: Sun-blind, rear
+S416A: Roller sun vizor, rear lateral
+S423A: Floor mats, velours
+S430A: Interior/outside mirror with auto dip
+S431A: Interior mirror with automatic-dip
+S441A: Smoker package
+S453A: Climatised fornt seats
+S455A: Active seat for driver and passenger
+S456A: Comfort seat with memory
+S459A: Seat adjuster, electric, with memory
+S465A: Through-loading system
+S488A: Lumbar support, driver and passenger
+S490A: Adjuster, backrest width
+S494A: Seat heating driver/passenger
+S496A: Seat heating, rear
+S497A: Centre armrest, rear
+S4AEA: Armrest front, retractable
+S4CEA: Fine woodgrain vers., Fineline anthrac.
+S4MRA: Interior strips, aluminum hexagon
+S4MYA: Int.trim,leather,carbon struct.,black
+S4MZA: Edelholz Platane Spiegelmaser anthrazit
+S4NAA: Interior mirror with digital compass
+S4NBA: Autom. climate control with 4-zone ctrl
+S502A: Headlight cleaning system
+S507A: Park Distance Control (PDC), rear
+S508A: Park Distance Control (PDC)
+S521A: Rain sensor
+S522A: Xenon Light
+S524A: Adaptive Headlights
+S563A: Light package
+S575A: Supplementary 12V sockets
+S5DCA: Rear-seat headrests, folding
+S609A: Navigation system Professional
+S615A: Expanded BMW Online Information
+S616A: BMW Online
+S620A: Voice control
+S639A: Preparation f mobile phone cpl. USA/CDN
+S655A: Satellite tuner
+S676A: HiFi speaker system
+S677A: HiFi System Professional DSP
+S693A: Preparation BMW satellite radio
+S697A: Area-Code 1 for DVD
+S6AAA: BMW TeleServices
+S6ABA: Control for Teleservices
+S6FLA: USB/Audio interface
+S6NFA: Music interface for Smartphone
+S6NRA: Apps
+S6UHA: Traffic Information
+S6VCA: Control for Combox
+S710A: M leather steering wheel
+S715A: M Aerodynamics package
+S752A: Individual audio system
+S760A: High gloss shadow line
+S775A: Headlining anthracite
+S7MAA: Competition Paket
+S840A: High speed synchronisation
+S8S4A: Decoding variable light distribution
+S8SCA: Telematics access request,country-spec.
+S8SPA: Control unit COP
+S8TLA: Tagfahrlicht Front und Hech aktiv
+S925A: Transport protection package
+"""
+
 my_options_config = {
-    '2011 BMW 550i': {
+    'BMW M3': {
+        'interesting': {
+            'P337A',    #: M Sports package
+            'S2VAA',    #: Chassis & suspens. setup"Adaptive Drive"
+            'S2MDA',    #: M Drive
+            'S322A',    #: Comfort access
+            'S323A',    #: Soft-Close-Automatic doors
+            'S403A',    #: Glass roof, electrical
+            'S453A',    #: Climatised fornt seats
+            'S456A',    #: Comfort seat with memory
+            'S459A',    #: Seat adjuster, electric, with memory
+            'S488A',    #: Lumbar support, driver and passenger
+            'S494A',    #: Seat heating driver/passenger
+            'S496A',    #: Seat heating, rear
+            'S4NBA',    #: Autom. climate control with 4-zone ctrl
+            'S507A',    #: Park Distance Control (PDC), rear
+            'S508A',    #: Park Distance Control (PDC)
+            'S524A',    #: Adaptive Headlights
+            'S609A',    #: Navigation system Professional
+            'S620A',    #: Voice control
+            'S676A',    #: HiFi speaker system
+            'S677A',    #: HiFi System Professional DSP
+            'S6FLA',    #: USB/Audio interface
+            'S6NFA',    #: Music interface for Smartphone
+            'S6NRA',    #: Apps
+            'S710A',    #: M leather steering wheel
+            'S715A',    #: M Aerodynamics package
+            'S752A',    #: Individual audio system
+            'S7MAA',    #: Competition Paket
+        },
+        'required': set(),
+        'scored': set(),
+        'rejected': set(),
+    },
+    'BMW 550I': {
         'interesting': {
             'P337A',    # M Sports package
             'P7MPA',    # Sports package
@@ -170,6 +291,14 @@ my_options_config = {
 
 }
 
+def get_options_config(info):
+    key = '{make} {model}'.format(
+        make=info['make'],
+        model=info['model'].split()[0].upper(),
+    )
+    return my_options_config[key]
+
+
 all_options = {}
 scores = []
 
@@ -206,18 +335,13 @@ for vin, vin_infos in infos_by_vin:
         continue
 
     info = vin_infos[0]
-    print info
 
-    key = '{year} {make} {model}'.format(
-        year=info['year'],
-        make=info['make'],
-        model=info['model'],
-    )
-    this_options_config = my_options_config[key]
+    this_options_config = get_options_config(info)
 
-    for key in info['options']:
-        if key not in all_options:
-            all_options[key] = info['options'][key]
+    # if info['model'].upper() == 'M3':
+    #     for key in info['options']:
+    #         if key not in all_options:
+    #             all_options[key] = info['options'][key]
 
     # ensure car is a manual
     transmission = None
@@ -259,20 +383,16 @@ for vin, vin_infos in infos_by_vin:
 
     scores.append((score, info, map(lambda i: i['url'], vin_infos)))
 
-# for key, value in sorted(options.items()):
+# for key, value in sorted(all_options.items()):
 #     print "%s: %s" % (key, value)
 
 
 matched_cars = 0
 for score, item, urls in reversed(sorted(scores, key=lambda x: x[0])):
-    key = '{year} {make} {model}'.format(
-        year=item['year'],
-        make=item['make'],
-        model=item['model'],
-    )
-    this_options_config = my_options_config[key]
-    printable_options_codes = map(list, this_options_config.values())
-    
+    this_options_config = get_options_config(item)
+    printable_options_codes = list(this_options_config['required']) + \
+                              list(this_options_config['interesting']) + \
+                              list(this_options_config['scored'])
     printable_options_codes = set(printable_options_codes)
 
     matched_cars += 1
