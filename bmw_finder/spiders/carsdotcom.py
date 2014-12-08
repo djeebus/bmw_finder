@@ -26,6 +26,9 @@ class CarsDotComSpider(BaseCarSpider):
             '21392': 'm3',
         }
 
+    def _create_request(self, model_ids, year_ids):
+        pass
+
     def start_requests(self):
         query = [
             ('bsId', '20211'),          # body style == sedan
@@ -40,6 +43,7 @@ class CarsDotComSpider(BaseCarSpider):
             ('yrId', '34923'),          # year: 2011
             ('yrId', '39723'),          # year: 2012
             ('rpp', '250'),             # 250 results per page
+            ('bsId', '20211'),          # sedan
         ]
 
         yield Request(

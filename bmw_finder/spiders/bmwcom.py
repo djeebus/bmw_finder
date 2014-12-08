@@ -10,14 +10,15 @@ from bmw_finder.spiders import BaseCarSpider
 class BmwComSpider(BaseCarSpider):
     name = 'bmw.com'
 
-    def start_requests(self):
+    def _create_request(self, series, model, min_year, max_year):
         query = [
             ('normalTransmission', 'Manual'),
-            ('year', '2010-2012'),
+            ('year', '%s-%s' % (min_year, max_year)),
             ('odometer', ''),
             ('highwayMpg', ''),
-            ('superModel', '5 Series'),
-            ('gvModel', '550i'),
+            ('superModel', series),
+            ('gvModel', model),
+            ('gvBodyStyle', 'Sedan'),
             ('compositeType', 'used'),
             ('geoZip', '94301'),
             ('geoRadius', '0'),
@@ -28,10 +29,16 @@ class BmwComSpider(BaseCarSpider):
             ('showSubmit', 'true'),
             ('showRadius', 'true'),
         ]
-        yield Request(
+        return Request(
             url='http://cpo.bmwusa.com/used-inventory/index.htm?%s' % urllib.urlencode(query),
             callback=self._parse_index,
         )
+
+    def start_requests(self):
+        return [
+            self._create_request('5 Series', '550i', 2010, 2012),
+            self._create_request('M Series', 'M3', 2008, 2011),
+        ]
 
     def _parse_index(self, response):
         selector = Selector(response)
