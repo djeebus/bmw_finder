@@ -4,6 +4,7 @@ import urllib
 from scrapy.http.request import Request
 from scrapy.selector import Selector
 
+from bmw_finder.spiders import MAX_MILES, MAX_PRICE
 from bmw_finder.items import CarInfo
 from bmw_finder.spiders import BaseCarSpider
 
@@ -11,24 +12,22 @@ from bmw_finder.spiders import BaseCarSpider
 class CarGurusSpider(BaseCarSpider):
     name = 'cargurus.com'
 
-    def start_requests(self):
-        # d1628 == 5 series
-        # m3 == bmw
+    def _create_index_query(self, page_index):
         query = [
             ('zip', '94301'),
             ('address', 'Palo Alto, CA'),
             ('latitude', '37.443'),
             ('longitude', '-122.151'),
             ('distance', 'NATIONWIDE'),
-            ('selectedEntity', 'd1628'),
+            ('selectedEntity', 'd1628'),    # 5 series
             ('minPrice', ''),
-            ('maxPrice', '41000'),
+            ('maxPrice', str(MAX_PRICE)),
             ('minMileage', ''),
-            ('maxMileage', '75000'),
+            ('maxMileage', str(MAX_MILES)),
             ('transmission', 'M'),
             ('bodyStyle', ''),
             ('serviceProvider', ''),
-            ('page', '1'),
+            ('page', str(page_index)),
             ('filterBySourcesString', ''),
             ('filterFeaturedBySourcesString', ''),
             ('displayFeaturedListings', 'true'),
@@ -36,11 +35,13 @@ class CarGurusSpider(BaseCarSpider):
             ('inventorySearchWidgetType', 'AUTO'),
             ('allYearsForTrimName', 'false'),
             ('trimNames', '550i'),
+            ('newUsed', '2'),   # used
+            ('newUsed', '3'),   # cpo
         ]
 
         body = urllib.urlencode(query)
 
-        yield Request(
+        return Request(
             url='http://www.cargurus.com/Cars/inventorylisting/ajaxFetchSubsetInventoryListing.action?'
                 'sourceContext=carGurusHomePage_false_0&cgLocale=en',
             method='POST',
@@ -50,7 +51,13 @@ class CarGurusSpider(BaseCarSpider):
             },
             body=body,
             callback=self._parse_index,
+            meta={
+                'make': 'BMW',
+            }
         )
+
+    def start_requests(self):
+        yield self._create_index_query(1)
 
     def _parse_index(self, response):
         json_body = ujson.loads(response.body)
@@ -74,13 +81,22 @@ class CarGurusSpider(BaseCarSpider):
                            'viewDetailsFilterViewInventoryListing.action#listing=%s' % listing_id,
                     'price': listing['price'],
                     'mileage': listing['mileage'],
-                }
+                    'make': response.meta['make'],
+                    'model': listing['trimName'],
+                    'year': listing['carYear'],
+                },
             )
+
+        if json_body['remainingResults']:
+            yield self._create_index_query(json_body['page'] + 1)
 
     def _parse_details(self, response):
         selector = Selector(response)
 
         car_info = CarInfo()
+        car_info['make'] = response.meta['make']
+        car_info['model'] = response.meta['model']
+        car_info['year'] = response.meta['year']
         car_info['listing_id'] = response.meta['listing_id']
         car_info['price'] = response.meta['price']
         car_info['mileage'] = response.meta['mileage']

@@ -8,6 +8,10 @@ from scrapy.spider import BaseSpider
 from scrapy.selector import Selector
 
 
+MAX_PRICE = 45000
+MAX_MILES = 75000
+
+
 class BaseCarSpider(BaseSpider):
     LISTING_INFO_KEY = 'listing:%s'
     RAW_VIN_INFO_KEY = 'rawvin:%s'
@@ -33,7 +37,7 @@ class BaseCarSpider(BaseSpider):
         if not response:
             return
 
-        if 'r die Fahrgestellnummer' in response:
+        if 'Sicherheitscode' not in response:
             return response
 
         self.log('cached response has no valid data, dismissing', scrapy.log.WARNING)
@@ -43,6 +47,11 @@ class BaseCarSpider(BaseSpider):
         response = self._get_cached_bmwarchive_response(vin)
         if response:
             selector = Selector(text=response)
+            tables = selector.xpath('//table')
+            if len(tables) == 3:
+                vehicle_table, standard_table, options_table = tables[:3]
+            else:
+                response = None
 
         if not response:
             body = 'vin=%s' % vin[-7:]
@@ -57,16 +66,23 @@ class BaseCarSpider(BaseSpider):
                 )
 
                 body = response.content
-                if 'Captcha' not in body:
-                    self._redis.set(self.RAW_VIN_INFO_KEY % vin, body)
-                    selector = Selector(text=body)
+                if 'Sicherheitscode' in body:
+                    self.log('got captchad, sleeping to try again...', level=scrapy.log.WARNING)
+                    time.sleep(600)
+                    continue
+                self._redis.set(self.RAW_VIN_INFO_KEY % vin, body)
+
+                if 'Kein Datensatz zu ' in body:
+                    self.log('no records found', level=scrapy.log.WARNING)
+                    return [], []
+
+                selector = Selector(text=body)
+                tables = selector.xpath('//table')
+                if len(tables) >= 3:
+                    vehicle_table, standard_table, options_table = tables[:3]
                     break
 
-                self.log('got captchad, sleeping ...', level=scrapy.log.WARNING)
-                time.sleep(600)
-
-        tables = selector.xpath('//table')
-        vehicle_table, standard_table, options_table = tables[:3]
+                self.log('invalid response, going to try again...', level=scrapy.log.WARNING)
 
         def parse_codes(table):
             rows = table.xpath('tbody/tr')

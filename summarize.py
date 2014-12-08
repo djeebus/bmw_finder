@@ -1,10 +1,12 @@
-from redis import Redis
+import itertools
 import ujson
 
+from collections import defaultdict
+from redis import Redis
+from urlparse import urlparse
 
-client = Redis('downloader')
+from bmw_finder.spiders import MAX_MILES, MAX_PRICE
 
-keys = client.keys('listing:*')
 
 """
 P337A: M Sports package
@@ -98,55 +100,150 @@ S925A: Transport protection package
 S9AAA: Outer skin protection
 """
 
-required_options = {
-    'S322A',    # Comfort access
-    'S456A',    # comfort seat
-    'P337A',    # M Sports package
-    'S2VAA',    # adaptive drive, counteracts body roll
-    'S229A',    # dynamic drive, aka Dynamic Handling Package
+my_options_config = {
+    '2011 BMW 550i': {
+        'interesting': {
+            'P337A',    # M Sports package
+            'P7MPA',    # Sports package
+
+            'S248A',    # Steering wheel heater
+            'S255A',    # Sports leather steering wheel
+            'S229A',    # dynamic drive, aka Dynamic Handling Package, dynamic damper control
+            'S2NDA'     #: BMW LA wheel, M Double Spoke 351
+            'S2NNA',    #: BMW alloy wheel, M double spoke 172
+
+            'S2VAA',    # adaptive drive, anti roll stabilization bars, counteracts body roll
+            'S2WCA',    #: BMW LM Rad W-Speiche 332
+            'S322A',    # Comfort access
+            'S323A',    #: Soft-Close-Automatic doors
+            'S339A',    #: Shadow-Line
+            'S3AGA',    #: Reversing camera
+            'S403A',    #: Glass roof, electrical
+            'S415A',    #: Sun-blind, rear
+            'S416A',    #: Roller sun vizor, rear lateral
+            'S453A',    #: Climatised fornt seats
+            'S455A',    #: Active seat for driver and passenger
+            'S456A',    #: Comfort seat with memory
+            'S488A',    #: Lumbar support, driver and passenger
+            'S494A',    #: Seat heating driver/passenger
+            'S496A',    #: Seat heating, rear
+            'S4NBA',    #: Autom. climate control with 4-zone ctrl
+
+            'S508A',    #: Park Distance Control (PDC)
+            'S522A',    #: Xenon Light
+            'S524A',    #: Adaptive Headlights
+
+            'S5DLA',    #: Surround View
+            'S5DPA',    #: Park Assistent
+
+            'S609A',    #: Navigation system Professional
+            'S610A',    # heads up display
+            'S677A',    #: HiFi System Professional DSP
+            'S6FGA',    #: Rear-compartment entertainment
+            'S6FLA',    #: USB/Audio interface
+            'S6NFA',    #: Music interface for Smartphone
+            'S6NRA',    #: Apps
+
+            'S6WAA',    #: Instrument cluster, expanded equipment
+            'S704A',    #: M Sports suspension
+            'S710A',    #: M leather steering wheel
+            'S715A',    #: M Aerodynamics package
+            'S760A',    #: High gloss shadow line
+        },
+        'required': {
+            'S322A',    # Comfort access
+            #'S456A',    # comfort seat
+            'P337A',    # M Sports package
+            #'S704A',    # m sports suspension
+        },
+        'scored': {
+            'S610A',    # heads up display
+            'S229A',    # dynamic drive, aka Dynamic Handling Package, dynamic damper control
+            'S2VAA',    # adaptive drive, anti roll stabilization bars, counteracts body roll
+            'P337A',    # M Sports package
+            'S322A',    # Comfort access
+        },
+        'rejected': {
+            'S2VHA',    # integral active steering
+        }
+    },
+
 }
 
-scored_options = {
-    'S610A',    # heads up display
-}
-
-rejected_options = {
-    'S2VHA',    # integral active steering
-}
-
-options = {}
+all_options = {}
 scores = []
-for key in keys:
-    info = ujson.loads(client.get(key))
+
+client = Redis('downloader')
+keys = client.keys('listing:*')
+total_keys = len(keys)
+keys = sorted(keys)
+
+infos = map(lambda key: ujson.loads(client.get(key)), keys)
+get_vin = lambda info: info['vin']
+sorted_infos = sorted(infos, key=get_vin)
+infos_by_vin = itertools.groupby(sorted_infos, key=get_vin)
+
+
+def clean_number(number):
+    if isinstance(number, int):
+        return number
+
+    return int(number.replace(',', '').replace('$', ''))
+
+
+total_cars = 0
+cars_by_domain = defaultdict(lambda: 0)
+for vin, vin_infos in infos_by_vin:
+    vin_infos = list(vin_infos)
+
+    total_cars += 1
+    for vin_info in vin_infos:
+        domain = urlparse(vin_info['url']).hostname
+        cars_by_domain[domain] += 1
+
+    if not vin:
+        print "No vin number!!"
+        continue
+
+    key = '{year} {make} {model}'.format(
+        year=vin_info['year'],
+        make=vin_info['make'],
+        model=vin_info['model'],
+    )
+    this_options_config = my_options_config[key]
+
+    info = vin_infos[0]
 
     for key in info['options']:
-        if key not in options:
-            options[key] = info['options'][key]
+        if key not in all_options:
+            all_options[key] = info['options'][key]
 
+    # ensure car is a manual
     transmission = None
     for vehicle_info in info['vehicle']:
         key, value = vehicle_info
         if key == 'Getriebe':
             transmission = value
-
     if transmission != 'manuell':
         continue
 
-    mileage = info['mileage']
-    if not isinstance(mileage, int):
-        mileage = int(mileage.replace(',', ''))
-    if mileage > 75000:
+    mileage = info['mileage'] = clean_number(info['mileage'])
+    if mileage > MAX_MILES:
+        continue
+
+    price = info['price'] = clean_number(info['price'])
+    if price > MAX_PRICE:
         continue
 
     is_match = True
-    for key in required_options:
+    for key in this_options_config['required']:
         if key not in info['options']:
             is_match = False
             break
     if not is_match:
         continue
 
-    for key in rejected_options:
+    for key in this_options_config['rejected']:
         if key in info['options']:
             is_match = False
     if not is_match:
@@ -154,22 +251,49 @@ for key in keys:
 
     score = 0
     for key, value in info['options'].items():
-        if key not in options:
-            options[key] = value
-        if key in required_options:
+        if key not in all_options:
+            all_options[key] = value
+        if key in this_options_config['scored']:
             score += 1
 
-    scores.append((score, info))
+    scores.append((score, info, map(lambda i: i['url'], vin_infos)))
 
 # for key, value in sorted(options.items()):
 #     print "%s: %s" % (key, value)
 
-for score, item in reversed(sorted(scores, key=lambda x: x[0])):
-    print "${price}\t{mileage}\t{url}".format(
+
+matched_cars = 0
+for score, item, urls in reversed(sorted(scores, key=lambda x: x[0])):
+    printable_options_codes = map(list, ) list(required_options)+list(scored_options)+list(interesting_options)
+    
+    printable_options_codes = set(printable_options_codes)
+
+    matched_cars += 1
+    print "{year} {make} {model}\t${price:,}\t\t{mileage:,} miles\t{score} points".format(
+        year=item['year'],
+        make=item['make'],
+        model=item['model'],
         price=item['price'],
         mileage=item['mileage'],
-        url=item['url'],
+        score=score,
     )
-    for key in required_options.union(scored_options):
-        if key in item['options']:
-            print "\t%s" % item['options'][key]
+    for url in sorted(urls):
+        print "%s" % url
+
+    printable_options = [item['options'][key] for key in printable_options_codes if key in item['options']]
+    for option in sorted(printable_options):
+        print "\t%s" % option
+
+    print
+
+
+print """total matches: {results} [{domains}]
+total cars: {cars}
+matched cars: {matches}
+
+""".format(
+    domains=' '.join('%s:%s' % (domain, count) for domain, count in cars_by_domain.items()),
+    results=total_keys,
+    cars=total_cars,
+    matches=matched_cars,
+)

@@ -11,6 +11,10 @@ class VinInfo(Item):
 
 
 class CarInfo(Item):
+    make = Field()
+    model = Field()
+    year = Field()
+
     vin = Field()
     listing_id = Field()
     price = Field()
