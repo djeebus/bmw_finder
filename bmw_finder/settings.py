@@ -11,9 +11,6 @@ BOT_NAME = 'bmw_finder'
 SPIDER_MODULES = ['bmw_finder.spiders']
 NEWSPIDER_MODULE = 'bmw_finder.spiders'
 
-FEED_FORMAT = 'jsonlines'
-FEED_URI = 'file:///cars.com.json'
-
 CONCURRENT_REQUESTS = 1
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'

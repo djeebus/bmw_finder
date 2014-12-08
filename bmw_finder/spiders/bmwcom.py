@@ -50,6 +50,10 @@ class BmwComSpider(BaseCarSpider):
         car_info['price'] = selector.xpath('//strong[@class="h1 price"]/text()').extract()[0].replace('$', '')
         car_info['url'] = response.request.url
 
+        title_parts = selector.xpath('//h1/text()').extract()[0].split()
+        car_info['make'] = title_parts[1]
+        car_info['model'] = ' '.join(title_parts[2:])
+
         detail_rows = selector.xpath('//ul[@class="details"]/li[@class]')
         for row in detail_rows:
             detail_type = row.xpath('@class').extract()[0]
@@ -59,6 +63,8 @@ class BmwComSpider(BaseCarSpider):
                 car_info['vin'] = value
             elif detail_type == "odometer":
                 car_info['mileage'] = value
+            elif detail_type == "year":
+                car_info['year'] = value
 
         self._store_in_redis(car_info)
         return car_info

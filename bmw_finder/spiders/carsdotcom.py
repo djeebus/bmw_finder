@@ -21,16 +21,22 @@ class CarsDotComSpider(BaseCarSpider):
 
         self._php_session_id = None
 
+        self._models = {
+            '20487': '550i',
+            '21392': 'm3',
+        }
+
     def start_requests(self):
         query = [
+            ('bsId', '20211'),          # body style == sedan
             ('stkTyp', 'U'),            # used cars
             ('mkId', '20005'),          # make id == bmw
             ('mdId', '20487'),          # model id == 550i
+            ('mdId', '21392'),          # model id == m3
             ('prMx', str(MAX_PRICE)),   # max price
             ('rd', '100000'),           # radius == all
             ('zc', '94301'),            # zip code
             ('transTypeId', '28112'),   # manual transmission
-            ('yrId', '27381'),          # year: 2010
             ('yrId', '34923'),          # year: 2011
             ('yrId', '39723'),          # year: 2012
             ('rpp', '250'),             # 250 results per page
@@ -39,10 +45,6 @@ class CarsDotComSpider(BaseCarSpider):
         yield Request(
             url='http://www.cars.com/for-sale/searchresults.action?%s' % urllib.urlencode(query),
             callback=self._parse_index,
-            meta={
-                'make': 'BMW',
-                'model': '550i',
-            }
         )
 
         query.append(('cpo', 'Y'))
@@ -70,8 +72,8 @@ class CarsDotComSpider(BaseCarSpider):
                           meta={
                               'listing_id': listing_id,
                               'price': car_data['price'],
-                              'make': response.meta['make'],
-                              'model': response.meta['model'],
+                              'make': 'BMW',
+                              'model': self._models[str(car_data['modelId'])],
                           })
 
         right_arrows = selector.xpath('//div[contains(@class, "simple-pagination")]/a[@class="right"]/@href')

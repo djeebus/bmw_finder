@@ -205,14 +205,15 @@ for vin, vin_infos in infos_by_vin:
         print "No vin number!!"
         continue
 
+    info = vin_infos[0]
+    print info
+
     key = '{year} {make} {model}'.format(
-        year=vin_info['year'],
-        make=vin_info['make'],
-        model=vin_info['model'],
+        year=info['year'],
+        make=info['make'],
+        model=info['model'],
     )
     this_options_config = my_options_config[key]
-
-    info = vin_infos[0]
 
     for key in info['options']:
         if key not in all_options:
@@ -264,7 +265,13 @@ for vin, vin_infos in infos_by_vin:
 
 matched_cars = 0
 for score, item, urls in reversed(sorted(scores, key=lambda x: x[0])):
-    printable_options_codes = map(list, ) list(required_options)+list(scored_options)+list(interesting_options)
+    key = '{year} {make} {model}'.format(
+        year=item['year'],
+        make=item['make'],
+        model=item['model'],
+    )
+    this_options_config = my_options_config[key]
+    printable_options_codes = map(list, this_options_config.values())
     
     printable_options_codes = set(printable_options_codes)
 
