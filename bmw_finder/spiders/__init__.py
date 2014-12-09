@@ -21,6 +21,13 @@ class BaseCarSpider(Spider):
 
         self._redis = redis.Redis(host='downloader')
 
+        # reset found cars. this will remove the ones that don't exist anymore
+        for key in self._redis.keys('listing:*'):
+            info = self._redis.get(key)
+            info = ujson.loads(info)
+            if self.name in info['url']:
+                self._redis.delete(key)
+
     def _store_in_redis(self, car_info):
         if car_info['vin']:
             vehicle_info, options = self._get_vin_info_from_bmwarchive(car_info['vin'])
