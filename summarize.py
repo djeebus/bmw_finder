@@ -218,6 +218,7 @@ my_options_config = {
         'required': {
             'S2MDA',    #: M Drive
             'S322A',    #: Comfort access
+            'XXX', #: disable m3s for now
         },
         'scored': {
             'S6FLA',    #: USB/Audio interface
@@ -228,6 +229,8 @@ my_options_config = {
         'rejected': set(),
     },
     'BMW 550I': {
+        'min_year': 2009,
+        'max_year': 2012,
         'interesting': {
             'P337A',    # M Sports package
             'P7MPA',    # Sports package
@@ -277,10 +280,12 @@ my_options_config = {
             'S760A',    #: High gloss shadow line
         },
         'required': {
-            'S322A',    # Comfort access
-            #'S456A',    # comfort seat
-            'P337A',    # M Sports package
-            #'S704A',    # m sports suspension
+            #'S322A',    # Comfort access
+            #'P337A',    # M Sports package
+            'S229A',    # dynamic drive, aka Dynamic Handling Package, dynamic damper control
+            'S2VAA',    # adaptive drive, Anti Roll Stabilization bars, counteracts body roll
+            #'S6FLA',    #: USB/Audio interface
+            #'S704A',    #: M Sports suspension
         },
         'scored': {
             'S610A',    # heads up display
@@ -302,6 +307,9 @@ def get_options_config(info):
         make=info['make'],
         model=info['model'].split()[0].upper(),
     )
+    key = 'BMW 550I' if key == 'BMW 5' else \
+          'BMW M3' if key == 'BMW M' else \
+          key
     return my_options_config[key]
 
 
@@ -349,6 +357,9 @@ for vin, vin_infos in infos_by_vin:
     info = vin_infos[0]
 
     this_options_config = get_options_config(info)
+    min_year = this_options_config.get('min_year')
+    if min_year and info['year'] < min_year:
+        continue
 
     # if info['model'].upper() == 'M3':
     #     for key in info['options']:
