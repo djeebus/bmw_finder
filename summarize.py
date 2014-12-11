@@ -187,21 +187,20 @@ S8TLA: Tagfahrlicht Front und Hech aktiv
 S925A: Transport protection package
 """
 
+blacklisted_vins = {
+    'WBAFR9C55BC271386',  # emg sales in new jersey
+}
+
 my_options_config = {
     'BMW M3': {
         'interesting': {
-            'P337A',    #: M Sports package
             'S2VAA',    #: Chassis & suspens. setup"Adaptive Drive"
-            'S2MDA',    #: M Drive
-            'S322A',    #: Comfort access
             'S323A',    #: Soft-Close-Automatic doors
             'S403A',    #: Glass roof, electrical
             'S453A',    #: Climatised fornt seats
             'S456A',    #: Comfort seat with memory
             'S459A',    #: Seat adjuster, electric, with memory
             'S488A',    #: Lumbar support, driver and passenger
-            'S494A',    #: Seat heating driver/passenger
-            'S496A',    #: Seat heating, rear
             'S4NBA',    #: Autom. climate control with 4-zone ctrl
             'S507A',    #: Park Distance Control (PDC), rear
             'S508A',    #: Park Distance Control (PDC)
@@ -210,16 +209,22 @@ my_options_config = {
             'S620A',    #: Voice control
             'S676A',    #: HiFi speaker system
             'S677A',    #: HiFi System Professional DSP
-            'S6FLA',    #: USB/Audio interface
             'S6NFA',    #: Music interface for Smartphone
             'S6NRA',    #: Apps
             'S710A',    #: M leather steering wheel
             'S715A',    #: M Aerodynamics package
             'S752A',    #: Individual audio system
+        },
+        'required': {
+            'S2MDA',    #: M Drive
+            'S322A',    #: Comfort access
+        },
+        'scored': {
+            'S6FLA',    #: USB/Audio interface
+            'S494A',    #: Seat heating driver/passenger
+            'S496A',    #: Seat heating, rear
             'S7MAA',    #: Competition Paket
         },
-        'required': set(),
-        'scored': set(),
         'rejected': set(),
     },
     'BMW 550I': {
@@ -291,6 +296,7 @@ my_options_config = {
 
 }
 
+
 def get_options_config(info):
     key = '{make} {model}'.format(
         make=info['make'],
@@ -314,6 +320,9 @@ infos_by_vin = itertools.groupby(sorted_infos, key=get_vin)
 
 
 def clean_number(number):
+    if not number:
+        return 0
+
     if isinstance(number, int):
         return number
 
@@ -324,6 +333,9 @@ total_cars = 0
 cars_by_domain = defaultdict(lambda: 0)
 for vin, vin_infos in infos_by_vin:
     vin_infos = list(vin_infos)
+
+    if vin in blacklisted_vins:
+        continue
 
     total_cars += 1
     for vin_info in vin_infos:
@@ -352,7 +364,7 @@ for vin, vin_infos in infos_by_vin:
     if transmission != 'manuell':
         continue
 
-    mileage = info['mileage'] = clean_number(info['mileage'])
+    mileage = info['mileage'] = clean_number(info.get('mileage'))
     if mileage > MAX_MILES:
         continue
 
@@ -396,7 +408,8 @@ for score, item, urls in reversed(sorted(scores, key=lambda x: x[0])):
     printable_options_codes = set(printable_options_codes)
 
     matched_cars += 1
-    print "{year} {make} {model}\t${price:,}\t\t{mileage:,} miles\t{score} points".format(
+    print "{year} {make} {model}\t${price:,}\t\t{mileage:,} miles\t{score} points\t\t{vin}".format(
+        vin=item['vin'],
         year=item['year'],
         make=item['make'],
         model=item['model'],

@@ -9,7 +9,7 @@ from scrapy.selector import Selector
 
 
 MAX_PRICE = 45000
-MAX_MILES = 75000
+MAX_MILES = 100000
 
 
 class BaseCarSpider(Spider):
@@ -37,6 +37,7 @@ class BaseCarSpider(Spider):
 
         payload = ujson.dumps(dict(car_info))
         redis_key = self.LISTING_INFO_KEY % car_info['listing_id']
+        self.log('storing %s' % redis_key, level=scrapy.log.INFO)
         self._redis.set(redis_key, payload)
 
     def _get_cached_bmwarchive_response(self, vin):
@@ -61,14 +62,14 @@ class BaseCarSpider(Spider):
                 response = None
 
         if not response:
-            body = 'vin=%s' % vin[-7:]
+            payload = 'vin=%s' % vin[-7:]
             while True:
                 response = requests.post(
                     url='http://www.bmwarchiv.de/vin/bmw-vin-decoder.html',
-                    data=body,
+                    data=payload,
                     headers={
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'Content-Length': str(len(body)),
+                        'Content-Length': str(len(payload)),
                     },
                 )
 
@@ -112,6 +113,7 @@ class BaseCarSpider(Spider):
                 value = ''.join(value.xpath('.//text()').extract())
                 yield key, value
 
+        self.log('parsing BMW archive response for %s' % vin)
         options = {key: value for key, value in parse_codes(options_table)}
         vehicle_info = list(parse_info(vehicle_table))
 
