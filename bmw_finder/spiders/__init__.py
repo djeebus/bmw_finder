@@ -8,7 +8,7 @@ from scrapy.spider import Spider
 from scrapy.selector import Selector
 
 
-MAX_PRICE = 45000
+MAX_PRICE = 40000
 MAX_MILES = 100000
 
 
@@ -78,6 +78,8 @@ class BaseCarSpider(Spider):
                     self.log('got captchad, sleeping to try again...', level=scrapy.log.WARNING)
                     time.sleep(600)
                     continue
+
+                self.log('storing vin info for %s' % vin)
                 self._redis.set(self.RAW_VIN_INFO_KEY % vin, body)
 
                 if 'Kein Datensatz zu ' in body:
